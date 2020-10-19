@@ -1,93 +1,103 @@
 import type { App } from "saurus/app.ts";
-import type { PlayerInfo } from "saurus/types.ts";
+import type { Extra, PlayerInfo, UUID } from "saurus/types.ts";
 import type { Player } from "saurus/player.ts";
-import type { Server } from "saurus/server.ts";
 import type { Message } from "saurus/websockets/connection.ts";
-import type { Pinger } from "saurus/plugins.ts";
+import { WSChannel } from "../../saurus/websockets/channel.ts";
 
-export class TitlePinger implements Pinger {
-  uuids = new Map<string, boolean>()
+export class TitlePinger {
+  uuids = new Map<UUID, boolean>()
 
-  /**
-   * Pinger plugin that sends a title when a player is pinged.
-   * @param server Server to activate the plugin on
-   */
-  constructor(
-    readonly server: Server
-  ) {
-    const offjoin = server.players.on(["join"],
-      this.onjoin.bind(this))
+  constructor() { }
 
-    server.once(["close"], offjoin)
-  }
-
-  async isPingable(player: Player) {
+  get(player: Player) {
     return this.uuids.get(player.uuid) ?? true
   }
 
-  async ping(player: Player, target: Player) {
-    if (!await this.isPingable(target))
-      throw new Error("Not pingable")
-
-    await target.title("Ping!", `${player.name} pinged you`)
+  set(player: Player, value: boolean) {
+    this.uuids.set(player.uuid, value)
   }
 
-  private async onjoin(player: Player) {
+  clear(player: Player) {
+    this.uuids.delete(player.uuid)
+  }
+
+  async ping(sender: Player, target: Player) {
+    if (!this.get(target)) throw new Error("Not pingable")
+    await target.title("Ping!", `${sender.name} pinged you`)
+  }
+}
+
+export class PlayerPinger {
+  /**
+   * Pinger plugin that sends a title when a player is pinged.
+   * @param player Player to activate the plugin on
+   */
+  constructor(
+    readonly pinger: TitlePinger,
+    readonly player: Player
+  ) {
     const offauth = player.on(["authorize"],
-      (app) => this.onapp(player, app))
+      this.onapp.bind(this))
 
-    const offinfo = player.extras.on(["pingable"], (info) => {
-      info.pingable = this.uuids.get(player.uuid) ?? true;
-    })
+    const offinfo = player.extras.on(["pinger"],
+      this.onextra.bind(this))
 
-    player.once(["quit"], offauth, offinfo)
+    player.once(["quit"], offauth, offinfo,
+      this.onquit.bind(this))
   }
 
-  private async onapp(player: Player, app: App) {
+  private async onextra(info: Extra<PlayerInfo>) {
+    const { pinger, player } = this
+    info.pingable = pinger.get(player);
+  }
+
+  private async onapp(app: App) {
     const offping = app.channels.on(["/ping"],
-      (req) => this.onping(player, req))
+      this.onping.bind(this))
 
     const offget = app.channels.on(["/ping/get"],
-      (req) => this.onget(player, req))
+      this.onget.bind(this))
 
     const offset = app.channels.on(["/ping/set"],
-      (req) => this.onset(player, req))
+      this.onset.bind(this))
 
     app.once(["close"], offping, offget, offset)
   }
 
-  private async onping(
-    player: Player,
-    request: Message
-  ) {
-    const { channel, data } = request as Message<PlayerInfo>
+  private async onquit() {
+    const { pinger, player } = this;
+    pinger.clear(player)
+  }
+
+  private async onping(channel: WSChannel) {
+    const { pinger, player } = this;
+
+    const data = await channel.read<PlayerInfo>()
+
+    const target = this.player.server.players.get(data)
+    if (!target) throw new Error("Invalid target")
+
+    await pinger.ping(player, target)
+    await channel.close()
+  }
+
+  private async onget(channel: WSChannel) {
+    const { pinger, player } = this
+
+    const data = await channel.read<PlayerInfo>()
 
     const target = player.server.players.get(data)
     if (!target) throw new Error("Invalid target")
 
-    await this.ping(player, target)
-    await channel.close()
+    await channel.close(pinger.get(target))
   }
 
-  private async onget(
-    player: Player,
-    request: Message
-  ) {
-    const { channel, data } = request as Message<PlayerInfo | undefined>
+  private async onset(channel: WSChannel) {
+    const { pinger, player } = this;
 
-    const target = data ? this.server.players.get(data) : player
-    if (!target) throw new Error("Invalid target")
+    const data = await channel.read<boolean>()
 
-    const value = await this.isPingable(target)
-    await channel.close(value)
-  }
-
-  private async onset(
-    player: Player,
-    request: Message
-  ) {
-    const { channel, data } = request as Message<boolean>
-    this.uuids.set(player.uuid, data)
+    pinger.set(player, data)
     await channel.close()
   }
 }

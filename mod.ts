@@ -2,9 +2,9 @@ import type { App } from "saurus/app.ts";
 import type { Extra, PlayerInfo, UUID } from "saurus/types.ts";
 import type { Player } from "saurus/player.ts";
 import type { Message } from "saurus/websockets/connection.ts";
-import { WSChannel } from "../../saurus/websockets/channel.ts";
+import type { Pinger } from "saurus/plugins.ts"
 
-export class TitlePinger {
+export class TitlePinger implements Pinger {
   uuids = new Map<UUID, boolean>()
 
   constructor() { }
@@ -33,7 +33,7 @@ export class PlayerPinger {
    * @param player Player to activate the plugin on
    */
   constructor(
-    readonly pinger: TitlePinger,
+    readonly pinger: Pinger,
     readonly player: Player
   ) {
     const offauth = player.on(["authorize"],

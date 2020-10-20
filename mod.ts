@@ -69,35 +69,35 @@ export class PlayerPinger {
     pinger.clear(player)
   }
 
-  private async onping(channel: WSChannel) {
+  private async onping(msg: Message) {
     const { pinger, player } = this;
 
-    const data = await channel.read<PlayerInfo>()
+    const data = msg.data as PlayerInfo
 
     const target = this.player.server.players.get(data)
     if (!target) throw new Error("Invalid target")
 
     await pinger.ping(player, target)
-    await channel.close()
+    await msg.channel.close()
   }
 
-  private async onget(channel: WSChannel) {
+  private async onget(msg: Message) {
     const { pinger, player } = this
 
-    const data = await channel.read<PlayerInfo>()
+    const data = msg.data as PlayerInfo
 
     const target = player.server.players.get(data)
     if (!target) throw new Error("Invalid target")
 
-    await channel.close(pinger.get(target))
+    await msg.channel.close(pinger.get(target))
   }
 
-  private async onset(channel: WSChannel) {
+  private async onset(msg: Message) {
     const { pinger, player } = this;
 
-    const data = await channel.read<boolean>()
+    const data = msg.data as boolean
 
     pinger.set(player, data)
-    await channel.close()
+    await msg.channel.close()
   }
 }

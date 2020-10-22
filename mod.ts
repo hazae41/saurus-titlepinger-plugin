@@ -52,14 +52,14 @@ export class PlayerPinger {
   }
 
   private async onapp(app: App) {
-    const offping = app.channels.on(["/ping"],
-      this.onping.bind(this))
+    const offping = app.paths.on(["/ping"], (msg) =>
+      this.onping(msg).catch(e => msg.channel.catch(e)))
 
-    const offget = app.channels.on(["/ping/get"],
-      this.onget.bind(this))
+    const offget = app.paths.on(["/ping/get"], (msg) =>
+      this.onget(msg).catch(e => msg.channel.catch(e)))
 
-    const offset = app.channels.on(["/ping/set"],
-      this.onset.bind(this))
+    const offset = app.paths.on(["/ping/set"], (msg) =>
+      this.onset(msg).catch(e => msg.channel.catch(e)))
 
     app.once(["close"], offping, offget, offset)
   }

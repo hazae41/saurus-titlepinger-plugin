@@ -3,7 +3,7 @@ import type { Extra, PlayerInfo, UUID } from "saurus/types.ts";
 import type { Player } from "saurus/player.ts";
 import type { Message } from "saurus/websockets/connection.ts";
 import type { Pinger } from "saurus/plugins.ts"
-import { Cancelled } from "https://deno.land/x/mutevents@5.2.2/mod.ts";
+import { Cancelled } from "mutevents/mod.ts";
 
 export class TitlePinger implements Pinger {
   uuids = new Map<UUID, boolean>()

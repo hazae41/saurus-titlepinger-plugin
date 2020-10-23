@@ -3,6 +3,7 @@ import type { Extra, PlayerInfo, UUID } from "saurus/types.ts";
 import type { Player } from "saurus/player.ts";
 import type { Message } from "saurus/websockets/connection.ts";
 import type { Pinger } from "saurus/plugins.ts"
+import { Cancelled } from "https://deno.land/x/mutevents@5.2.2/mod.ts";
 
 export class TitlePinger implements Pinger {
   uuids = new Map<UUID, boolean>()
@@ -52,14 +53,14 @@ export class PlayerPinger {
   }
 
   private async onapp(app: App) {
-    const offping = app.paths.on(["/ping"], (msg) =>
-      this.onping(msg).catch(e => msg.channel.catch(e)))
+    const offping = app.paths.on(["/ping"],
+      this.onping.bind(this))
 
-    const offget = app.paths.on(["/ping/get"], (msg) =>
-      this.onget(msg).catch(e => msg.channel.catch(e)))
+    const offget = app.paths.on(["/ping/get"],
+      this.onget.bind(this))
 
-    const offset = app.paths.on(["/ping/set"], (msg) =>
-      this.onset(msg).catch(e => msg.channel.catch(e)))
+    const offset = app.paths.on(["/ping/set"],
+      this.onset.bind(this))
 
     app.once(["close"], offping, offget, offset)
   }
@@ -74,11 +75,13 @@ export class PlayerPinger {
 
     const data = msg.data as PlayerInfo
 
-    const target = this.player.server.players.get(data)
+    const target = player.server.players.get(data)
     if (!target) throw new Error("Invalid target")
 
     await pinger.ping(player, target)
     await msg.channel.close()
+
+    throw new Cancelled("TitlePinger")
   }
 
   private async onget(msg: Message) {
@@ -90,6 +93,8 @@ export class PlayerPinger {
     if (!target) throw new Error("Invalid target")
 
     await msg.channel.close(pinger.get(target))
+
+    throw new Cancelled("TitlePinger")
   }
 
   private async onset(msg: Message) {
@@ -99,5 +104,7 @@ export class PlayerPinger {
 
     pinger.set(player, data)
     await msg.channel.close()
+
+    throw new Cancelled("TitlePinger")
   }
 }

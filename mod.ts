@@ -1,9 +1,9 @@
-import type { App } from "saurus/app.ts";
-import type { Extra, PlayerInfo, UUID } from "saurus/types.ts";
-import type { Player } from "saurus/player.ts";
-import type { Message } from "saurus/websockets/conn.ts";
-import type { Pinger } from "saurus/plugins.ts"
-import { Cancelled } from "mutevents/mod.ts";
+import type { App } from "saurus/src/app.ts";
+import type { Extra, PlayerInfo, UUID } from "saurus/src/types.ts";
+import type { Player } from "saurus/src/player.ts";
+import type { Pinger } from "saurus/src/plugins.ts"
+import { Cancelled } from "saurus/deps/mutevents.ts";
+import { Message } from "saurus/deps/multisocket.ts";
 
 export class TitlePinger implements Pinger {
   uuids = new Map<UUID, boolean>()

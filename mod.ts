@@ -5,6 +5,10 @@ import type { Pinger } from "saurus/src/plugins.ts"
 import { Cancelled } from "saurus/deps/mutevents.ts";
 import { Message } from "saurus/deps/multisocket.ts";
 
+async function launch<T>(f: () => Promise<T>) {
+  return await f()
+}
+
 export class TitlePinger implements Pinger {
   uuids = new Map<UUID, boolean>()
 
@@ -73,13 +77,18 @@ export class PlayerPinger {
   private async onping(msg: Message) {
     const { pinger, player } = this;
 
-    const data = msg.data as PlayerInfo
+    const { channel, data } =
+      msg as Message<PlayerInfo>
 
-    const target = player.server.players.get(data)
-    if (!target) throw new Error("Invalid target")
+    try {
+      const target = player.server.players.get(data)
+      if (!target) throw new Error("Invalid target")
 
-    await pinger.ping(player, target)
-    await msg.channel.close()
+      await pinger.ping(player, target)
+      await channel.close()
+    } catch (e: unknown) {
+      await channel.catch(e)
+    }
 
     throw new Cancelled("TitlePinger")
   }
@@ -87,12 +96,17 @@ export class PlayerPinger {
   private async onget(msg: Message) {
     const { pinger, player } = this
 
-    const data = msg.data as PlayerInfo
+    const { channel, data } =
+      msg as Message<PlayerInfo>
 
-    const target = player.server.players.get(data)
-    if (!target) throw new Error("Invalid target")
+    try {
+      const target = player.server.players.get(data)
+      if (!target) throw new Error("Invalid target")
 
-    await msg.channel.close(pinger.get(target))
+      await channel.close(pinger.get(target))
+    } catch (e: unknown) {
+      await channel.catch(e)
+    }
 
     throw new Cancelled("TitlePinger")
   }
@@ -100,10 +114,15 @@ export class PlayerPinger {
   private async onset(msg: Message) {
     const { pinger, player } = this;
 
-    const data = msg.data as boolean
+    const { channel, data } =
+      msg as Message<boolean>
 
-    pinger.set(player, data)
-    await msg.channel.close()
+    try {
+      pinger.set(player, data)
+      await channel.close()
+    } catch (e: unknown) {
+      await channel.catch(e)
+    }
 
     throw new Cancelled("TitlePinger")
   }
